@@ -534,7 +534,7 @@
         <input type="text" id="loginName" maxlength="20" placeholder="請輸入姓名" />
       </label>
       <div class="actions" style="margin-top: 16px;">
-        <button class="btn btn-primary" id="loginBtn">開始學單字</button>
+        <button class="btn btn-primary" id="loginBtn" type="button">開始學單字</button>
       </div>
       <div class="message" id="loginMessage"></div>
     </div>
@@ -15093,16 +15093,18 @@
 
     function submitLogin() {
       const name = el.loginName.value.trim();
-      const password = el.loginPassword.value.trim();
-      if (password !== ACCESS_PASSWORD) {
-        el.loginMessage.textContent = "??????";
+      const password = el.loginPassword.value.replace(/\s+/g, "");
+
+      if (password !== String(ACCESS_PASSWORD)) {
+        el.loginMessage.textContent = "通關密語錯誤";
         return;
       }
       if (!name) {
-        el.loginMessage.textContent = "??????";
+        el.loginMessage.textContent = "請先輸入姓名";
         return;
       }
 
+      el.loginMessage.textContent = "";
       sessionStorage.setItem(SESSION_KEYS.accessPassed, "true");
       upsertPlayer(name);
       el.loginOverlay.classList.remove("show");
