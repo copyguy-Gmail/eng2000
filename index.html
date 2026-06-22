@@ -525,16 +525,16 @@
 <body>
   <div class="login-overlay" id="loginOverlay">
     <div class="login-card">
-      <h2>暑期 2000 單字王</h2>
-      <p>先輸入姓名與通關密語，系統就會在這台電腦裡記住目前使用者與累積分數，之後同一個分頁可直接繼續使用。</p>
+      <h2>&#26257;&#26399; 2000 &#21934;&#23383;&#29579;</h2>
+      <p>&#20808;&#36664;&#20837;&#22995;&#21517;&#33287;&#36890;&#38364;&#23494;&#35486;&#65292;&#31995;&#32113;&#23601;&#26371;&#22312;&#36889;&#21488;&#38651;&#33126;&#35041;&#35352;&#20303;&#30446;&#21069;&#20351;&#29992;&#32773;&#33287;&#32047;&#31309;&#20998;&#25976;&#65292;&#20043;&#24460;&#21516;&#19968;&#20491;&#20998;&#38913;&#21487;&#30452;&#25509;&#32380;&#32396;&#20351;&#29992;&#12290;</p>
       <label>
-        <input type="password" id="loginPassword" maxlength="20" placeholder="請輸入通關密語" />
+        <input type="password" id="loginPassword" maxlength="20" placeholder="&#35531;&#36664;&#20837;&#36890;&#38364;&#23494;&#35486;" />
       </label>
       <label>
-        <input type="text" id="loginName" maxlength="20" placeholder="請輸入姓名" />
+        <input type="text" id="loginName" maxlength="20" placeholder="&#35531;&#36664;&#20837;&#22995;&#21517;" />
       </label>
       <div class="actions" style="margin-top: 16px;">
-        <button class="btn btn-primary" id="loginBtn" type="button">開始學單字</button>
+        <button class="btn btn-primary" id="loginBtn" type="button">&#38283;&#22987;&#23416;&#21934;&#23383;</button>
       </div>
       <div class="message" id="loginMessage"></div>
     </div>
@@ -14783,7 +14783,18 @@
 
     function getPlayers() {
       const players = safeReadJSON(STORAGE_KEYS.players, []);
-      return Array.isArray(players) ? players : [];
+      if (!Array.isArray(players)) return [];
+
+      // 防止舊版或手動改壞的 localStorage 資料讓排行榜渲染中斷，導致登入畫面無法關閉。
+      return players
+        .filter((player) => player && typeof player === "object" && String(player.name || "").trim())
+        .map((player) => ({
+          ...player,
+          name: String(player.name).trim(),
+          score: Number.isFinite(Number(player.score)) ? Number(player.score) : 0,
+          updatedAt: Number.isFinite(Number(player.updatedAt)) ? Number(player.updatedAt) : 0,
+          history: Array.isArray(player.history) ? player.history : []
+        }));
     }
 
     function savePlayers(players) {
@@ -14854,7 +14865,7 @@
     }
 
     function escapeHtml(text) {
-      return text
+      return String(text)
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
@@ -15071,9 +15082,13 @@
       const savedUser = localStorage.getItem(STORAGE_KEYS.currentUser);
       if (!force && savedUser && sessionStorage.getItem(SESSION_KEYS.accessPassed) === "true") {
         state.currentUser = savedUser;
-        renderCurrentUser();
-        renderLeaderboard();
         el.loginOverlay.classList.remove("show");
+        try {
+          renderCurrentUser();
+          renderLeaderboard();
+        } catch (error) {
+          console.error("登入後更新玩家資訊失敗", error);
+        }
         return;
       }
 
@@ -15106,9 +15121,19 @@
 
       el.loginMessage.textContent = "";
       sessionStorage.setItem(SESSION_KEYS.accessPassed, "true");
-      upsertPlayer(name);
+      state.currentUser = name;
+      localStorage.setItem(STORAGE_KEYS.currentUser, name);
       el.loginOverlay.classList.remove("show");
-      applyRange();
+
+      try {
+        upsertPlayer(name);
+        applyRange();
+      } catch (error) {
+        // 登入驗證已成功時，不應因排行榜或範圍初始化例外把玩家卡在登入畫面。
+        console.error("登入後初始化失敗", error);
+        renderCurrentUser();
+        renderLeaderboard();
+      }
     }
 
     function switchTab(tab) {
