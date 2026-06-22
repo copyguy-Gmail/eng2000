@@ -15069,8 +15069,7 @@
 
     function showLogin(force = false) {
       const savedUser = localStorage.getItem(STORAGE_KEYS.currentUser);
-      const passed = sessionStorage.getItem(SESSION_KEYS.accessPassed) === "true";
-      if (!force && savedUser && passed) {
+      if (!force && savedUser && sessionStorage.getItem(SESSION_KEYS.accessPassed) === "true") {
         state.currentUser = savedUser;
         renderCurrentUser();
         renderLeaderboard();
@@ -15080,12 +15079,13 @@
 
       if (force) {
         localStorage.removeItem(STORAGE_KEYS.currentUser);
+        sessionStorage.removeItem(SESSION_KEYS.accessPassed);
         state.currentUser = null;
         renderCurrentUser();
       }
 
       el.loginPassword.value = "";
-      el.loginName.value = force && savedUser ? savedUser : "";
+      el.loginName.value = "";
       el.loginMessage.textContent = "";
       el.loginOverlay.classList.add("show");
       setTimeout(() => el.loginPassword.focus(), 60);
@@ -15093,14 +15093,13 @@
 
     function submitLogin() {
       const name = el.loginName.value.trim();
-      const passed = sessionStorage.getItem(SESSION_KEYS.accessPassed) === "true";
       const password = el.loginPassword.value.trim();
       if (password !== ACCESS_PASSWORD) {
-        el.loginMessage.textContent = "通關密語不正確。";
+        el.loginMessage.textContent = "??????";
         return;
       }
       if (!name) {
-        el.loginMessage.textContent = "請先輸入姓名。";
+        el.loginMessage.textContent = "??????";
         return;
       }
 
