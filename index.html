@@ -526,10 +526,14 @@
   <div class="login-overlay" id="loginOverlay">
     <div class="login-card">
       <h2>歡迎挑戰暑期 2000 單字王</h2>
-      <p>先輸入通關密碼與姓名。只要密碼正確，系統就會在這台電腦裡記住目前使用者與累積分數，之後同一個分頁可直接繼續使用。</p>
+      <p>先輸入通關密語與姓名。只要密語正確，系統就會在這台電腦裡記住目前使用者與累積分數，之後同一個分頁可直接繼續使用。</p>
       <label>
         通關密碼
-        <input type="password" id="loginPassword" maxlength="20" placeholder="請輸入密語" />
+        <input type="password" id="loginPassword" maxlength="20" placeholder="請輸入通關密語" />
+        <label>
+          角色代碼
+          <input type="text" id="adminCode" maxlength="20" placeholder="Nutanix 為管理者" />
+        </label>
       </label>
       <label>
         姓名
@@ -629,20 +633,12 @@
               <p class="meaning-display" id="studyMeaning">成年人</p>
               <div class="meta-grid">
                 <div class="meta-card">
-                  <small>編號</small>
-                  <strong id="studyId">1</strong>
+                  <small>編號 / 詞性 / 音標</small>
+                  <strong id="studyMeta">1 / 名詞 / əˈdʌlt</strong>
                 </div>
                 <div class="meta-card">
-                  <small>詞性</small>
-                  <strong id="studyPos">名詞</strong>
-                </div>
-                <div class="meta-card">
-                  <small>KK 音標</small>
-                  <strong id="studyKK">əˈdʌlt</strong>
-                </div>
-                <div class="meta-card">
-                  <small>英文發音</small>
-                  <strong>en-US</strong>
+                  <small>中文提示</small>
+                  <strong id="studyMeaning">成年人</strong>
                 </div>
               </div>
               <div class="card-actions">
@@ -14693,10 +14689,13 @@
     const STORAGE_KEYS = {
       players: "summer2000king.players",
       currentUser: "summer2000king.currentUser",
-      autoSpeak: "summer2000king.autoSpeak"
+      autoSpeak: "summer2000king.autoSpeak",
+      history: "summer2000king.history",
+      admin: "summer2000king.admin"
     };
 
-    const ACCESS_PASSWORD = "541115";
+    const ACCESS_PASSWORD = window.__APP_PASSWORD__ || "541115";
+    const ADMIN_CODE = "Nutanix";
     const SESSION_KEYS = {
       accessPassed: "summer2000king.accessPassed"
     };
@@ -14710,6 +14709,9 @@
       quizItem: null,
       quizLocked: false,
       autoSpeak: false,
+      soundOn: true,
+      challengeHistory: safeReadJSON(STORAGE_KEYS.history, []),
+      isAdmin: sessionStorage.getItem(STORAGE_KEYS.admin) === "true",
       voices: []
     };
 
@@ -14721,6 +14723,7 @@
       loginMessage: document.getElementById("loginMessage"),
       currentUserName: document.getElementById("currentUserName"),
       currentUserScore: document.getElementById("currentUserScore"),
+      scoreHistory: document.getElementById("scoreHistory"),
       switchUserBtn: document.getElementById("switchUserBtn"),
       rangeStart: document.getElementById("rangeStart"),
       rangeEnd: document.getElementById("rangeEnd"),
@@ -14733,9 +14736,7 @@
       studyProgress: document.getElementById("studyProgress"),
       studyWord: document.getElementById("studyWord"),
       studyMeaning: document.getElementById("studyMeaning"),
-      studyId: document.getElementById("studyId"),
-      studyPos: document.getElementById("studyPos"),
-      studyKK: document.getElementById("studyKK"),
+      studyMeta: document.getElementById("studyMeta"),
       prevCardBtn: document.getElementById("prevCardBtn"),
       nextCardBtn: document.getElementById("nextCardBtn"),
       speakBtn: document.getElementById("speakBtn"),
@@ -14748,6 +14749,10 @@
       quizFeedback: document.getElementById("quizFeedback"),
       nextQuizBtn: document.getElementById("nextQuizBtn"),
       quizSpeakBtn: document.getElementById("quizSpeakBtn"),
+      soundToggle: document.getElementById("soundToggle"),
+      fillToggle: document.getElementById("fillToggle"),
+      historyToggle: document.getElementById("historyToggle"),
+      resetScoresBtn: document.getElementById("resetScoresBtn"),
       tabButtons: [...document.querySelectorAll(".tab-btn")],
       tabPanels: {
         study: document.getElementById("studyPanel"),
@@ -14807,21 +14812,26 @@
       const target = players.find((player) => player.name === state.currentUser);
       if (!target) return;
       target.score += points;
+      target.history = target.history || [];
+      target.history.push({ at: Date.now(), delta: points, total: target.score });
       target.updatedAt = Date.now();
       savePlayers(players);
+      state.challengeHistory = safeReadJSON(STORAGE_KEYS.history, []);
+      state.challengeHistory.push({ name: state.currentUser, delta: points, total: target.score, at: Date.now() });
+      localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(state.challengeHistory));
       renderCurrentUser();
       renderLeaderboard();
+      renderScoreHistory();
     }
 
     function renderCurrentUser() {
       const record = getCurrentUserRecord();
-      el.currentUserName.textContent = state.currentUser || "未登入";
+      el.currentUserName.textContent = state.currentUser ? state.currentUser + (state.isAdmin ? " 👑" : "") : "未登入";
       el.currentUserScore.textContent = record ? String(record.score) : "0";
     }
 
     function renderLeaderboard() {
-      const players = getPlayers()
-        .sort((a, b) => (b.score - a.score) || (a.updatedAt - b.updatedAt));
+      const players = getPlayers().sort((a, b) => (b.score - a.score) || (a.updatedAt - b.updatedAt));
 
       if (!players.length) {
         el.leaderboardList.innerHTML = '<div class="empty-box">還沒有玩家紀錄，先登入開始挑戰吧。</div>';
@@ -14832,7 +14842,7 @@
         <div class="leaderboard-item">
           <div class="leaderboard-rank">${index + 1}</div>
           <div>
-            <strong>${escapeHtml(player.name)}</strong>
+            <strong>${escapeHtml(player.name)}${index === 0 ? " 👑" : ""}</strong>
             <div class="muted">${player.name === state.currentUser ? "目前登入中" : "本機歷史紀錄"}</div>
           </div>
           <strong>${player.score} 分</strong>
@@ -14882,9 +14892,7 @@
         el.studyProgress.textContent = "目前沒有單字";
         el.studyWord.textContent = "請先設定有效範圍";
         el.studyMeaning.textContent = "系統找不到這段編號的單字。";
-        el.studyId.textContent = "-";
-        el.studyPos.textContent = "-";
-        el.studyKK.textContent = "-";
+        el.studyMeta.textContent = "- / - / -";
         el.prevCardBtn.disabled = true;
         el.nextCardBtn.disabled = true;
         return;
@@ -14893,9 +14901,7 @@
       el.studyProgress.textContent = `第 ${state.studyIndex + 1} / ${state.filteredWords.length} 張`;
       el.studyWord.textContent = item.word;
       el.studyMeaning.textContent = item.meaning;
-      el.studyId.textContent = String(item.id);
-      el.studyPos.textContent = item.pos;
-      el.studyKK.textContent = item.kk || "待補";
+      el.studyMeta.textContent = `${item.id} / ${item.pos} / ${item.kk || "待補"}`;
       el.prevCardBtn.disabled = state.studyIndex === 0;
       el.nextCardBtn.disabled = state.studyIndex === state.filteredWords.length - 1;
 
@@ -14991,8 +14997,8 @@
       el.quizFeedback.textContent = "";
       el.quizFeedback.className = "feedback";
 
-      el.quizOptions.innerHTML = options.map((meaning) => `
-        <button class="option-btn" data-meaning="${escapeHtml(meaning)}">${escapeHtml(meaning)}</button>
+      el.quizOptions.innerHTML = options.map((meaning, index) => `
+        <button class="option-btn" data-meaning="${escapeHtml(meaning)}">${index + 1}. ${escapeHtml(meaning)}</button>
       `).join("");
 
       [...el.quizOptions.querySelectorAll(".option-btn")].forEach((button) => {
@@ -15044,6 +15050,7 @@
       }
 
       el.loginPassword.value = "";
+      if (el.adminCode) el.adminCode.value = "";
       el.loginName.value = force && savedUser ? savedUser : "";
       el.loginMessage.textContent = "";
       el.loginOverlay.classList.add("show");
@@ -15054,9 +15061,10 @@
       const name = el.loginName.value.trim();
       const passed = sessionStorage.getItem(SESSION_KEYS.accessPassed) === "true";
       const password = el.loginPassword.value.trim();
+      const adminCode = el.adminCode?.value?.trim() || "";
 
       if (!passed && password !== ACCESS_PASSWORD) {
-        el.loginMessage.textContent = "通關密碼不正確。";
+        el.loginMessage.textContent = "通關密語不正確。";
         return;
       }
       if (!name) {
@@ -15064,7 +15072,9 @@
         return;
       }
 
+      state.isAdmin = adminCode === ADMIN_CODE;
       sessionStorage.setItem(SESSION_KEYS.accessPassed, "true");
+      sessionStorage.setItem(STORAGE_KEYS.admin, String(state.isAdmin));
       upsertPlayer(name);
       el.loginOverlay.classList.remove("show");
       applyRange();
@@ -15079,6 +15089,38 @@
       });
     }
 
+
+    function renderScoreHistory() {
+      if (!el.scoreHistory) return;
+      const entries = [...state.challengeHistory].slice(-20).reverse();
+      el.scoreHistory.innerHTML = entries.length ? entries.map((item) => `<div class="empty-box">${escapeHtml(item.name)} +${item.delta} => ${item.total}</div>`).join("") : '<div class="empty-box">還沒有挑戰紀錄。</div>';
+    }
+
+    function resetAllScores() {
+      if (!state.isAdmin) return;
+      const players = getPlayers().map((player) => ({ ...player, score: 0, updatedAt: Date.now(), history: [] }));
+      savePlayers(players);
+      localStorage.removeItem(STORAGE_KEYS.history);
+      state.challengeHistory = [];
+      renderCurrentUser();
+      renderLeaderboard();
+      renderScoreHistory();
+    }
+
+    function handleKeyboard(event) {
+      if (event.key === "ArrowLeft") moveStudyCard(-1);
+      if (event.key === "ArrowRight") moveStudyCard(1);
+      if (event.key === " ") {
+        event.preventDefault();
+        const item = state.filteredWords[state.studyIndex];
+        if (item) speakWord(item.word);
+      }
+    }
+
+    function renderQuizQuestion() {
+      loadQuizQuestion();
+    }
+
     function init() {
       el.totalCount.textContent = String(vocabData.length);
       el.rangeStart.value = state.rangeStart;
@@ -15086,6 +15128,7 @@
 
       state.autoSpeak = localStorage.getItem(STORAGE_KEYS.autoSpeak) === "true";
       el.autoSpeakToggle.checked = state.autoSpeak;
+      state.soundOn = true;
 
       loadVoices();
       if ("speechSynthesis" in window) {
@@ -15113,6 +15156,17 @@
       el.quizSpeakBtn.addEventListener("click", () => {
         if (state.quizItem) speakWord(state.quizItem.word);
       });
+      el.soundToggle.addEventListener("change", (event) => {
+        state.soundOn = event.target.checked;
+      });
+      el.fillToggle.addEventListener("change", (event) => {
+        state.fillMode = event.target.checked;
+        renderQuizQuestion();
+      });
+      el.historyToggle?.addEventListener("change", renderScoreHistory);
+      el.resetScoresBtn?.addEventListener("click", resetAllScores);
+      document.addEventListener("keydown", handleKeyboard);
+
       el.nextQuizBtn.addEventListener("click", loadQuizQuestion);
       el.autoSpeakToggle.addEventListener("change", (event) => {
         state.autoSpeak = event.target.checked;
@@ -15125,6 +15179,7 @@
 
       renderLeaderboard();
       renderCurrentUser();
+      renderScoreHistory();
       applyRange();
       showLogin();
     }
