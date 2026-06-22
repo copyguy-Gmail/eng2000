@@ -612,51 +612,71 @@
           <div class="tab-buttons">
             <button class="btn btn-secondary tab-btn active" data-tab="study">Study Mode</button>
             <button class="btn btn-secondary tab-btn" data-tab="quiz">Quiz Mode</button>
+            <button class="btn btn-secondary tab-btn" data-tab="fill">Fill Mode</button>
           </div>
 
           <div class="tab-panel active" id="studyPanel" style="margin-top: 18px;">
             <div class="study-card">
               <div class="card-top">
-                <span class="pill" id="studyProgress">第 1 / 50 張</span>
+                <span class="pill" id="studyProgress">? 1 / 50 ?</span>
                 <label class="toggle">
                   <input type="checkbox" id="autoSpeakToggle" />
-                  自動發音
+                  ????
                 </label>
               </div>
               <div class="word-display" id="studyWord">adult</div>
-              <p class="meaning-display" id="studyMeaning">成年人</p>
+              <p class="meaning-display" id="studyMeaning">???</p>
               <div class="meta-grid">
                 <div class="meta-card">
-                  <small>編號 / 詞性 / 音標</small>
-                  <strong id="studyMeta">1 / 名詞 / əˈdʌlt</strong>
+                  <small>?? / ?? / ??</small>
+                  <strong id="studyMeta">1 / ?? / ??d?lt</strong>
                 </div>
                 <div class="meta-card">
-                  <small>中文提示</small>
-                  <strong id="studyMeaning">成年人</strong>
+                  <small>????</small>
+                  <strong id="studyMeaning">???</strong>
                 </div>
               </div>
               <div class="card-actions">
-                <button class="btn btn-secondary" id="prevCardBtn">上一張</button>
-                <button class="btn btn-primary" id="speakBtn">發音一次</button>
-                <button class="btn btn-secondary" id="nextCardBtn">下一張</button>
+                <button class="btn btn-secondary" id="prevCardBtn">???</button>
+                <button class="btn btn-primary" id="speakBtn">????</button>
+                <button class="btn btn-secondary" id="nextCardBtn">???</button>
               </div>
-              <div class="muted" id="speechHint" style="margin-top: 14px;">提示：若瀏覽器支援語音，按下按鈕即可播放英文發音。</div>
+              <div class="muted" id="speechHint" style="margin-top: 14px;">?????????????????????????</div>
             </div>
           </div>
 
           <div class="tab-panel" id="quizPanel" style="margin-top: 18px;">
             <div class="quiz-card">
               <div class="card-top">
-                <span class="pill" id="quizRangePill">範圍 1 - 50</span>
-                <span class="pill">答對 +10 分</span>
+                <span class="pill" id="quizRangePill">?? 1 - 50</span>
+                <span class="pill">?? +10 ?</span>
               </div>
               <div class="quiz-question" id="quizWord">adult</div>
-              <p class="quiz-subtitle" id="quizMeta">請選出正確的中文意思</p>
+              <p class="quiz-subtitle" id="quizMeta">??????????</p>
               <div class="option-grid" id="quizOptions"></div>
               <div class="feedback" id="quizFeedback"></div>
               <div class="quiz-actions" style="margin-top: 14px;">
-                <button class="btn btn-success" id="nextQuizBtn">下一題</button>
-                <button class="btn btn-secondary" id="quizSpeakBtn">聽發音</button>
+                <button class="btn btn-success" id="nextQuizBtn">???</button>
+                <button class="btn btn-secondary" id="quizSpeakBtn">???</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-panel" id="fillPanel" style="margin-top: 18px;">
+            <div class="quiz-card">
+              <div class="card-top">
+                <span class="pill" id="fillRangePill">?? 1 - 50</span>
+                <span class="pill">????????</span>
+              </div>
+              <div class="quiz-question" id="fillMeaning">???</div>
+              <p class="quiz-subtitle" id="fillHint">?????????????</p>
+              <div class="fill-row" style="display:grid;gap:12px;">
+                <input id="fillInput" type="text" autocomplete="off" placeholder="??????" />
+                <div class="feedback" id="fillFeedback"></div>
+              </div>
+              <div class="quiz-actions" style="margin-top: 14px;">
+                <button class="btn btn-success" id="nextFillBtn">???</button>
+                <button class="btn btn-secondary" id="fillSpeakBtn">???</button>
               </div>
             </div>
           </div>
@@ -664,14 +684,6 @@
       </div>
 
       <aside class="leaderboard">
-        <div class="panel-title">
-          <div>
-            <h3>單字王者排行榜</h3>
-            <div class="muted">依照本機瀏覽器紀錄即時排序。</div>
-          </div>
-        </div>
-        <div class="leaderboard-list" id="leaderboardList"></div>
-      </aside>
     </div>
   </main>
 
@@ -14700,6 +14712,8 @@
       studyIndex: 0,
       quizItem: null,
       quizLocked: false,
+      fillItem: null,
+      fillLocked: false,
       autoSpeak: false,
       soundOn: true,
       challengeHistory: safeReadJSON(STORAGE_KEYS.history, []),
@@ -14738,10 +14752,18 @@
       quizFeedback: document.getElementById("quizFeedback"),
       nextQuizBtn: document.getElementById("nextQuizBtn"),
       quizSpeakBtn: document.getElementById("quizSpeakBtn"),
+      fillRangePill: document.getElementById("fillRangePill"),
+      fillMeaning: document.getElementById("fillMeaning"),
+      fillHint: document.getElementById("fillHint"),
+      fillInput: document.getElementById("fillInput"),
+      fillFeedback: document.getElementById("fillFeedback"),
+      nextFillBtn: document.getElementById("nextFillBtn"),
+      fillSpeakBtn: document.getElementById("fillSpeakBtn"),
       tabButtons: [...document.querySelectorAll(".tab-btn")],
       tabPanels: {
         study: document.getElementById("studyPanel"),
-        quiz: document.getElementById("quizPanel")
+        quiz: document.getElementById("quizPanel"),
+        fill: document.getElementById("fillPanel")
       }
     };
 
@@ -14865,6 +14887,7 @@
 
       renderStudyCard();
       loadQuizQuestion();
+      loadFillQuestion();
     }
 
     function renderStudyCard(shouldAutoSpeak = false) {
@@ -15012,6 +15035,38 @@
       }
     }
 
+    function loadFillQuestion() {
+      if (!state.filteredWords.length) {
+        el.fillMeaning.textContent = "????????";
+        el.fillHint.textContent = "???????????";
+        el.fillInput.value = "";
+        el.fillFeedback.textContent = "";
+        return;
+      }
+      state.fillLocked = false;
+      state.fillItem = pickRandomItem(state.filteredWords);
+      el.fillMeaning.textContent = state.fillItem.meaning;
+      el.fillHint.textContent = `??? ${state.fillItem.id} ??????`;
+      el.fillInput.value = "";
+      el.fillFeedback.textContent = "";
+      el.fillInput.focus();
+    }
+
+    function checkFillAnswer() {
+      if (state.fillLocked || !state.fillItem) return;
+      const answer = el.fillInput.value.trim().toLowerCase();
+      const target = state.fillItem.word.toLowerCase();
+      state.fillLocked = true;
+      if (answer === target) {
+        addScore(10);
+        el.fillFeedback.className = 'feedback success';
+        el.fillFeedback.textContent = `????????? ${state.fillItem.word}`;
+      } else {
+        el.fillFeedback.className = 'feedback error';
+        el.fillFeedback.textContent = `????????? ${state.fillItem.word}`;
+      }
+    }
+
     function showLogin(force = false) {
       const savedUser = localStorage.getItem(STORAGE_KEYS.currentUser);
       const passed = sessionStorage.getItem(SESSION_KEYS.accessPassed) === "true";
@@ -15062,6 +15117,7 @@
       Object.entries(el.tabPanels).forEach(([name, panel]) => {
         panel.classList.toggle("active", name === tab);
       });
+      if (tab === "fill") loadFillQuestion();
     }
 
     function handleKeyboard(event) {
@@ -15118,6 +15174,14 @@
       });
       el.quizSpeakBtn.addEventListener("click", () => {
         if (state.quizItem) speakWord(state.quizItem.word);
+      });
+      el.nextQuizBtn.addEventListener("click", loadQuizQuestion);
+      el.nextFillBtn.addEventListener("click", loadFillQuestion);
+      el.fillSpeakBtn.addEventListener("click", () => {
+        if (state.fillItem) speakWord(state.fillItem.word);
+      });
+      el.fillInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") checkFillAnswer();
       });
       document.addEventListener("keydown", handleKeyboard);
       document.addEventListener("keydown", handleKeyboard);
