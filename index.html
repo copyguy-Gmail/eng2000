@@ -684,6 +684,16 @@
       </div>
 
       <aside class="leaderboard">
+        <div class="panel-title">
+          <div>
+            <h2>單字王者排行榜</h2>
+            <div class="muted">本機瀏覽器保存的挑戰積分。</div>
+          </div>
+        </div>
+        <div id="leaderboardList" class="leaderboard-list">
+          <div class="empty-box">還沒有玩家紀錄，先登入開始挑戰吧。</div>
+        </div>
+      </aside>
     </div>
   </main>
 
@@ -14847,6 +14857,7 @@
     }
 
     function renderLeaderboard() {
+      if (!el.leaderboardList) return;
       const players = getPlayers().sort((a, b) => (b.score - a.score) || (a.updatedAt - b.updatedAt));
 
       if (!players.length) {
