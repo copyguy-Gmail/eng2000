@@ -618,46 +618,46 @@
           <div class="tab-panel active" id="studyPanel" style="margin-top: 18px;">
             <div class="study-card">
               <div class="card-top">
-                <span class="pill" id="studyProgress">? 1 / 50 ?</span>
+                <span class="pill" id="studyProgress">第 1 / 50 張</span>
                 <label class="toggle">
                   <input type="checkbox" id="autoSpeakToggle" />
-                  ????
+                  自動發音
                 </label>
               </div>
               <div class="word-display" id="studyWord">adult</div>
-              <p class="meaning-display" id="studyMeaning">???</p>
+              <p class="meaning-display" id="studyMeaning">成年人</p>
               <div class="meta-grid">
                 <div class="meta-card">
-                  <small>?? / ?? / ??</small>
-                  <strong id="studyMeta">1 / ?? / ??d?lt</strong>
+                  <small>編號 / 詞性 / 音標</small>
+                  <strong id="studyMeta">1 / 名詞 / ʌdˈʌlt</strong>
                 </div>
                 <div class="meta-card">
-                  <small>????</small>
-                  <strong id="studyMeaning">???</strong>
+                  <small>中文意思</small>
+                  <strong id="studyMeaningCard">成年人</strong>
                 </div>
               </div>
               <div class="card-actions">
-                <button class="btn btn-secondary" id="prevCardBtn">???</button>
-                <button class="btn btn-primary" id="speakBtn">????</button>
-                <button class="btn btn-secondary" id="nextCardBtn">???</button>
+                <button class="btn btn-secondary" id="prevCardBtn">上一張</button>
+                <button class="btn btn-primary" id="speakBtn">聽發音</button>
+                <button class="btn btn-secondary" id="nextCardBtn">下一張</button>
               </div>
-              <div class="muted" id="speechHint" style="margin-top: 14px;">?????????????????????????</div>
+              <div class="muted" id="speechHint" style="margin-top: 14px;">快捷鍵：左箭頭上一張，右箭頭下一張，空白鍵聽發音。</div>
             </div>
           </div>
 
           <div class="tab-panel" id="quizPanel" style="margin-top: 18px;">
             <div class="quiz-card">
               <div class="card-top">
-                <span class="pill" id="quizRangePill">?? 1 - 50</span>
-                <span class="pill">?? +10 ?</span>
+                <span class="pill" id="quizRangePill">範圍 1 - 50</span>
+                <span class="pill">答對 +10 分</span>
               </div>
               <div class="quiz-question" id="quizWord">adult</div>
-              <p class="quiz-subtitle" id="quizMeta">??????????</p>
+              <p class="quiz-subtitle" id="quizMeta">名詞｜請選出正確的中文意思</p>
               <div class="option-grid" id="quizOptions"></div>
               <div class="feedback" id="quizFeedback"></div>
               <div class="quiz-actions" style="margin-top: 14px;">
-                <button class="btn btn-success" id="nextQuizBtn">???</button>
-                <button class="btn btn-secondary" id="quizSpeakBtn">???</button>
+                <button class="btn btn-success" id="nextQuizBtn">下一題</button>
+                <button class="btn btn-secondary" id="quizSpeakBtn">聽發音</button>
               </div>
             </div>
           </div>
@@ -665,18 +665,18 @@
           <div class="tab-panel" id="fillPanel" style="margin-top: 18px;">
             <div class="quiz-card">
               <div class="card-top">
-                <span class="pill" id="fillRangePill">?? 1 - 50</span>
-                <span class="pill">????????</span>
+                <span class="pill" id="fillRangePill">範圍 1 - 50</span>
+                <span class="pill">答對 +10 分</span>
               </div>
-              <div class="quiz-question" id="fillMeaning">???</div>
-              <p class="quiz-subtitle" id="fillHint">?????????????</p>
+              <div class="quiz-question" id="fillMeaning">成年人</div>
+              <p class="quiz-subtitle" id="fillHint">請看中文意思，輸入完整英文單字。</p>
               <div class="fill-row" style="display:grid;gap:12px;">
-                <input id="fillInput" type="text" autocomplete="off" placeholder="??????" />
+                <input id="fillInput" type="text" autocomplete="off" placeholder="請輸入英文單字" />
                 <div class="feedback" id="fillFeedback"></div>
               </div>
               <div class="quiz-actions" style="margin-top: 14px;">
-                <button class="btn btn-success" id="nextFillBtn">???</button>
-                <button class="btn btn-secondary" id="fillSpeakBtn">???</button>
+                <button class="btn btn-success" id="nextFillBtn">下一題</button>
+                <button class="btn btn-secondary" id="fillSpeakBtn">聽發音</button>
               </div>
             </div>
           </div>
@@ -14740,6 +14740,8 @@
       studyProgress: document.getElementById("studyProgress"),
       studyWord: document.getElementById("studyWord"),
       studyMeaning: document.getElementById("studyMeaning"),
+      studyMeaningCard: document.getElementById("studyMeaningCard"),
+      studyMeta: document.getElementById("studyMeta"),
       prevCardBtn: document.getElementById("prevCardBtn"),
       nextCardBtn: document.getElementById("nextCardBtn"),
       speakBtn: document.getElementById("speakBtn"),
@@ -14840,7 +14842,7 @@
 
     function renderCurrentUser() {
       const record = getCurrentUserRecord();
-      el.currentUserName.textContent = state.currentUser || "???";
+      el.currentUserName.textContent = state.currentUser || "未登入";
       el.currentUserScore.textContent = record ? String(record.score) : "0";
     }
 
@@ -14895,6 +14897,7 @@
       el.rangeSummary.textContent = `${rangeStart} - ${rangeEnd}`;
       el.rangeCount.textContent = String(state.filteredWords.length);
       el.quizRangePill.textContent = `範圍 ${rangeStart} - ${rangeEnd}`;
+      el.fillRangePill.textContent = `範圍 ${rangeStart} - ${rangeEnd}`;
 
       renderStudyCard();
       loadQuizQuestion();
@@ -14915,6 +14918,7 @@
       el.studyProgress.textContent = `第 ${state.studyIndex + 1} / ${state.filteredWords.length} 張`;
       el.studyWord.textContent = item.word;
       el.studyMeaning.textContent = item.meaning;
+      el.studyMeaningCard.textContent = item.meaning;
       el.studyMeta.textContent = `${item.id} / ${item.pos} / ${item.kk || "待補"}`;
       el.prevCardBtn.disabled = state.studyIndex === 0;
       el.nextCardBtn.disabled = state.studyIndex === state.filteredWords.length - 1;
@@ -15026,10 +15030,10 @@
 
       const correctMeaning = state.quizItem.meaning;
       const buttons = [...el.quizOptions.querySelectorAll(".option-btn")];
-      const selectedMeaning = button.textContent;
+      const selectedMeaning = button.dataset.meaning;
 
       buttons.forEach((itemButton) => {
-        const isCorrect = itemButton.textContent === correctMeaning;
+        const isCorrect = itemButton.dataset.meaning === correctMeaning;
         itemButton.disabled = true;
         if (isCorrect) itemButton.classList.add("correct");
       });
@@ -15048,8 +15052,8 @@
 
     function loadFillQuestion() {
       if (!state.filteredWords.length) {
-        el.fillMeaning.textContent = "????????";
-        el.fillHint.textContent = "???????????";
+        el.fillMeaning.textContent = "目前沒有單字";
+        el.fillHint.textContent = "請先設定有效範圍。";
         el.fillInput.value = "";
         el.fillFeedback.textContent = "";
         return;
@@ -15057,7 +15061,7 @@
       state.fillLocked = false;
       state.fillItem = pickRandomItem(state.filteredWords);
       el.fillMeaning.textContent = state.fillItem.meaning;
-      el.fillHint.textContent = `??? ${state.fillItem.id} ??????`;
+      el.fillHint.textContent = `編號 ${state.fillItem.id}，請輸入完整英文單字。`;
       el.fillInput.value = "";
       el.fillFeedback.textContent = "";
       el.fillInput.focus();
@@ -15071,10 +15075,10 @@
       if (answer === target) {
         addScore(10);
         el.fillFeedback.className = 'feedback success';
-        el.fillFeedback.textContent = `????????? ${state.fillItem.word}`;
+        el.fillFeedback.textContent = `答對了！正確單字是 ${state.fillItem.word}`;
       } else {
         el.fillFeedback.className = 'feedback error';
-        el.fillFeedback.textContent = `????????? ${state.fillItem.word}`;
+        el.fillFeedback.textContent = `答錯了，正確單字是 ${state.fillItem.word}`;
       }
     }
 
