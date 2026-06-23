@@ -536,6 +536,7 @@
       <div class="actions" style="margin-top: 16px;">
         <button class="btn btn-primary" id="loginBtn" type="button">&#38283;&#22987;&#23416;&#21934;&#23383;</button>
       </div>
+      <div class="message" id="loginChampion">正在讀取目前王者...</div>
       <div class="message" id="loginMessage"></div>
     </div>
   </div>
@@ -687,7 +688,7 @@
         <div class="panel-title">
           <div>
             <h2>單字王者排行榜</h2>
-            <div class="muted">本機瀏覽器保存的挑戰積分。</div>
+            <div class="muted" id="leaderboardStatus">本機瀏覽器保存的挑戰積分。</div>
           </div>
         </div>
         <div id="leaderboardList" class="leaderboard-list">
@@ -14710,6 +14711,11 @@
     };
 
     const ACCESS_PASSWORD = window.__APP_PASSWORD__ || "541115";
+    // 遠端排行榜 API。GitHub Pages 不能直接寫檔；部署 score-api-google-apps-script.js 後，
+    // 將 Web App URL 貼到下方空字串即可啟用全站排行榜。
+    const REMOTE_SCORE_API_URL = "";
+    const REMOTE_SCORE_API = String(window.__REMOTE_SCORE_API__ || REMOTE_SCORE_API_URL).trim();
+    const SCORE_SYNC_INTERVAL_MS = 30000;
     const SESSION_KEYS = {
       accessPassed: "summer2000king.accessPassed"
     };
@@ -14727,7 +14733,10 @@
       autoSpeak: false,
       soundOn: true,
       challengeHistory: safeReadJSON(STORAGE_KEYS.history, []),
-      voices: []
+      voices: [],
+      scoreSaveTimer: null,
+      scoreSyncTimer: null,
+      remoteScoresReady: false
     };
 
     const el = {
@@ -14735,6 +14744,7 @@
       loginPassword: document.getElementById("loginPassword"),
       loginName: document.getElementById("loginName"),
       loginBtn: document.getElementById("loginBtn"),
+      loginChampion: document.getElementById("loginChampion"),
       loginMessage: document.getElementById("loginMessage"),
       currentUserName: document.getElementById("currentUserName"),
       currentUserScore: document.getElementById("currentUserScore"),
@@ -14746,6 +14756,7 @@
       rangeSummary: document.getElementById("rangeSummary"),
       rangeCount: document.getElementById("rangeCount"),
       totalCount: document.getElementById("totalCount"),
+      leaderboardStatus: document.getElementById("leaderboardStatus"),
       leaderboardList: document.getElementById("leaderboardList"),
       studyProgress: document.getElementById("studyProgress"),
       studyWord: document.getElementById("studyWord"),
@@ -14793,8 +14804,7 @@
       localStorage.setItem(key, JSON.stringify(value));
     }
 
-    function getPlayers() {
-      const players = safeReadJSON(STORAGE_KEYS.players, []);
+    function normalizePlayers(players) {
       if (!Array.isArray(players)) return [];
 
       // 防止舊版或手動改壞的 localStorage 資料讓排行榜渲染中斷，導致登入畫面無法關閉。
@@ -14809,13 +14819,129 @@
         }));
     }
 
+    function getPlayers() {
+      return normalizePlayers(safeReadJSON(STORAGE_KEYS.players, []));
+    }
+
     function savePlayers(players) {
-      safeWriteJSON(STORAGE_KEYS.players, players);
+      safeWriteJSON(STORAGE_KEYS.players, normalizePlayers(players));
+    }
+
+    function mergePlayers(localPlayers, remotePlayers) {
+      const merged = new Map();
+      [...normalizePlayers(remotePlayers), ...normalizePlayers(localPlayers)].forEach((player) => {
+        const existing = merged.get(player.name);
+        if (!existing) {
+          merged.set(player.name, player);
+          return;
+        }
+
+        // 同名玩家以較高分為準；時間取最新，避免離線遊玩後被舊遠端資料覆蓋。
+        merged.set(player.name, {
+          ...existing,
+          ...player,
+          score: Math.max(existing.score, player.score),
+          updatedAt: Math.max(existing.updatedAt, player.updatedAt),
+          history: [...(existing.history || []), ...(player.history || [])].slice(-50)
+        });
+      });
+
+      return [...merged.values()].sort((a, b) => (b.score - a.score) || (b.updatedAt - a.updatedAt));
     }
 
     function getCurrentUserRecord() {
       const players = getPlayers();
       return players.find((player) => player.name === state.currentUser) || null;
+    }
+
+    function getChampion() {
+      return getPlayers().sort((a, b) => (b.score - a.score) || (b.updatedAt - a.updatedAt))[0] || null;
+    }
+
+    function setLeaderboardStatus(text) {
+      if (el.leaderboardStatus) el.leaderboardStatus.textContent = text;
+    }
+
+    function renderLoginChampion() {
+      if (!el.loginChampion) return;
+      const champion = getChampion();
+      if (champion) {
+        el.loginChampion.textContent = `目前王者：${champion.name}，${champion.score} 分 👑`;
+      } else {
+        el.loginChampion.textContent = "目前還沒有王者，第一位挑戰者有機會登頂！";
+      }
+    }
+
+    async function fetchRemotePlayers() {
+      if (!REMOTE_SCORE_API) return null;
+      const response = await fetch(`${REMOTE_SCORE_API}?t=${Date.now()}`, { method: "GET", cache: "no-store" });
+      if (!response.ok) throw new Error(`遠端讀取失敗：HTTP ${response.status}`);
+      const data = await response.json();
+      return normalizePlayers(data.players || []);
+    }
+
+    async function saveRemotePlayer(player) {
+      if (!REMOTE_SCORE_API || !player) return null;
+      const response = await fetch(REMOTE_SCORE_API, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "saveScore", player })
+      });
+      if (!response.ok) throw new Error(`遠端儲存失敗：HTTP ${response.status}`);
+      const data = await response.json();
+      return normalizePlayers(data.players || []);
+    }
+
+    async function syncScoresFromRemote() {
+      if (!REMOTE_SCORE_API) {
+        setLeaderboardStatus("本機瀏覽器保存的挑戰積分。");
+        renderLoginChampion();
+        return;
+      }
+
+      try {
+        setLeaderboardStatus("正在同步全站排行榜...");
+        const remotePlayers = await fetchRemotePlayers();
+        const mergedPlayers = mergePlayers(getPlayers(), remotePlayers);
+        savePlayers(mergedPlayers);
+        state.remoteScoresReady = true;
+        setLeaderboardStatus("全站排行榜已同步，分數會自動存到網路。");
+        renderCurrentUser();
+        renderLeaderboard();
+        renderLoginChampion();
+      } catch (error) {
+        console.warn("遠端排行榜同步失敗，暫時使用本機分數", error);
+        setLeaderboardStatus("遠端排行榜暫時無法連線，先使用本機分數。");
+        renderLoginChampion();
+      }
+    }
+
+    async function syncCurrentScoreToRemote() {
+      if (!REMOTE_SCORE_API || !state.currentUser) return;
+      const record = getCurrentUserRecord();
+      if (!record) return;
+
+      try {
+        const remotePlayers = await saveRemotePlayer(record);
+        if (remotePlayers) {
+          savePlayers(mergePlayers(getPlayers(), remotePlayers));
+          renderCurrentUser();
+          renderLeaderboard();
+          renderLoginChampion();
+        }
+        setLeaderboardStatus("全站排行榜已同步，分數會自動存到網路。");
+      } catch (error) {
+        console.warn("遠端分數儲存失敗，稍後會再嘗試", error);
+        setLeaderboardStatus("分數已先存在本機，稍後會再嘗試同步。");
+      }
+    }
+
+    function scheduleScoreSync() {
+      if (!REMOTE_SCORE_API) return;
+      window.clearTimeout(state.scoreSaveTimer);
+      state.scoreSaveTimer = window.setTimeout(() => {
+        syncCurrentScoreToRemote();
+      }, 900);
     }
 
     function upsertPlayer(name) {
@@ -14848,6 +14974,8 @@
       savePlayers(players);
       renderCurrentUser();
       renderLeaderboard();
+      renderLoginChampion();
+      scheduleScoreSync();
     }
 
     function renderCurrentUser() {
@@ -15107,6 +15235,8 @@
         return;
       }
 
+      syncScoresFromRemote();
+
       if (force) {
         localStorage.removeItem(STORAGE_KEYS.currentUser);
         sessionStorage.removeItem(SESSION_KEYS.accessPassed);
@@ -15117,11 +15247,12 @@
       el.loginPassword.value = "";
       el.loginName.value = "";
       el.loginMessage.textContent = "";
+      renderLoginChampion();
       el.loginOverlay.classList.add("show");
       setTimeout(() => el.loginPassword.focus(), 60);
     }
 
-    function submitLogin() {
+    async function submitLogin() {
       const name = el.loginName.value.trim();
       const password = el.loginPassword.value.replace(/\s+/g, "");
 
@@ -15135,19 +15266,24 @@
       }
 
       el.loginMessage.textContent = "";
+      el.loginBtn.disabled = true;
       sessionStorage.setItem(SESSION_KEYS.accessPassed, "true");
       state.currentUser = name;
       localStorage.setItem(STORAGE_KEYS.currentUser, name);
       el.loginOverlay.classList.remove("show");
 
       try {
+        await syncScoresFromRemote();
         upsertPlayer(name);
+        await syncCurrentScoreToRemote();
         applyRange();
       } catch (error) {
         // 登入驗證已成功時，不應因排行榜或範圍初始化例外把玩家卡在登入畫面。
         console.error("登入後初始化失敗", error);
         renderCurrentUser();
         renderLeaderboard();
+      } finally {
+        el.loginBtn.disabled = false;
       }
     }
 
@@ -15240,7 +15376,17 @@
 
       renderLeaderboard();
       renderCurrentUser();
+      renderLoginChampion();
       applyRange();
+      syncScoresFromRemote();
+      if (REMOTE_SCORE_API) {
+        state.scoreSyncTimer = window.setInterval(() => {
+          syncScoresFromRemote().then(syncCurrentScoreToRemote);
+        }, SCORE_SYNC_INTERVAL_MS);
+        window.addEventListener("beforeunload", () => {
+          syncCurrentScoreToRemote();
+        });
+      }
       showLogin();
     }
 
