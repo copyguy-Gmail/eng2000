@@ -8,9 +8,14 @@ ROOT = Path(__file__).resolve().parents[1]
 CSV_PATH = ROOT / "tmp" / "vocab6000.csv"
 TEMPLATE_PATH = ROOT / "index.html"
 OUTPUT_PATH = ROOT / "eng6000" / "index.html"
+LEVEL1_KK_PATH = ROOT / "eng6000" / "level1_kk.json"
 
 
 def load_vocab():
+    level1_kk = {}
+    if LEVEL1_KK_PATH.exists():
+        level1_kk = json.loads(LEVEL1_KK_PATH.read_text(encoding="utf-8"))
+
     items = []
     with CSV_PATH.open("r", encoding="utf-8-sig", newline="") as file:
         reader = csv.reader(file)
@@ -28,7 +33,7 @@ def load_vocab():
                 "pos": pos,
                 "display": display,
                 "meaning": meaning,
-                "kk": ""
+                "kk": level1_kk.get(word, "")
             })
     return items
 
