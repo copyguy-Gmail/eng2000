@@ -127,7 +127,7 @@ def main():
         "function setLevelFilter(levelText) {\n"
         "      state.selectedLevels = levelText.split(',').map(Number);\n"
         "      el.levelButtons.forEach((button) => button.classList.toggle('active', button.dataset.levels === levelText));\n"
-        "      applyRange();\n"
+        "      applyRange(1, vocabData.length);\n"
         "    }\n\n"
         "    function switchTab(tab) {"
     )

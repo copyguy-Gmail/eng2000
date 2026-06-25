@@ -55423,7 +55423,7 @@
     function setLevelFilter(levelText) {
       state.selectedLevels = levelText.split(',').map(Number);
       el.levelButtons.forEach((button) => button.classList.toggle('active', button.dataset.levels === levelText));
-      applyRange();
+      applyRange(1, vocabData.length);
     }
 
     function switchTab(tab) {
