@@ -5,7 +5,9 @@ on:
   push:
     paths:
       - "android-apk/**"
+      - "android-apk-6000/**"
       - "index.html"
+      - "eng6000/**"
       - ".github/workflows/android-apk.yml"
 
 jobs:
@@ -37,12 +39,26 @@ jobs:
         shell: bash
         run: cp index.html android-apk/app/src/main/assets/index.html
 
-      - name: Build debug APK
+      - name: Copy latest 6000 web app into Android assets
+        shell: bash
+        run: cp eng6000/index.html android-apk-6000/app/src/main/assets/index.html
+
+      - name: Build 2000 debug APK
         working-directory: android-apk
         run: gradle :app:assembleDebug
 
-      - name: Upload APK artifact
+      - name: Build 6000 debug APK
+        working-directory: android-apk-6000
+        run: gradle :app:assembleDebug
+
+      - name: Upload 2000 APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: eng2000-wordking-debug-apk
           path: android-apk/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload 6000 APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eng6000-wordking-debug-apk
+          path: android-apk-6000/app/build/outputs/apk/debug/app-debug.apk
