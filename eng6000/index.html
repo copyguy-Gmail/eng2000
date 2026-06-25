@@ -54841,6 +54841,7 @@
     const REMOTE_SCORE_API_URL = "";
     const REMOTE_SCORE_API = String(window.__REMOTE_SCORE_API__ || REMOTE_SCORE_API_URL).trim();
     const SCORE_SYNC_INTERVAL_MS = 30000;
+    const AUTO_NEXT_DELAY_MS = 900;
     const SESSION_KEYS = {
       accessPassed: "eng6000king.accessPassed"
     };
@@ -54862,6 +54863,8 @@
       voices: [],
       scoreSaveTimer: null,
       scoreSyncTimer: null,
+      quizNextTimer: null,
+      fillNextTimer: null,
       remoteScoresReady: false
     };
 
@@ -55270,6 +55273,7 @@
     }
 
     function loadQuizQuestion() {
+      window.clearTimeout(state.quizNextTimer);
       if (!state.filteredWords.length) {
         el.quizWord.textContent = "請先設定有效範圍";
         el.quizMeta.textContent = "目前沒有可抽題的單字。";
@@ -55320,9 +55324,12 @@
         el.quizFeedback.textContent = `答錯了，正確答案是「${correctMeaning}」。`;
         el.quizFeedback.className = "feedback error";
       }
+
+      state.quizNextTimer = window.setTimeout(loadQuizQuestion, AUTO_NEXT_DELAY_MS);
     }
 
     function loadFillQuestion() {
+      window.clearTimeout(state.fillNextTimer);
       if (!state.filteredWords.length) {
         el.fillMeaning.textContent = "目前沒有單字";
         el.fillHint.textContent = "請先設定有效範圍。";
@@ -55352,6 +55359,8 @@
         el.fillFeedback.className = 'feedback error';
         el.fillFeedback.textContent = `答錯了，正確單字是 ${state.fillItem.word}`;
       }
+
+      state.fillNextTimer = window.setTimeout(loadFillQuestion, AUTO_NEXT_DELAY_MS);
     }
 
     function showLogin(force = false) {
